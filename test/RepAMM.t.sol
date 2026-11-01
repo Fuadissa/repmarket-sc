@@ -391,17 +391,17 @@ contract RepAMMTest is Test {
         assertGt(usdcOut, 0);
     }
 
-    function test_Sell_TokenFeeAccrued() public {
-        uint256 usdcIn = 100 * 1e6;
-        _fundBuyer(alice, usdcIn);
-        uint256 tokenOut = _buy(alice, usdcIn);
-        uint256 toSell = tokenOut / 2;
-        (uint256 feeBps, ) = amm.previewFee(false, toSell);
-        uint256 expectFee = (toSell * feeBps) / 10_000;
-        _sell(alice, toSell);
-        (, uint256 accToken) = amm.getAccruedFees();
-        assertEq(accToken, expectFee);
-    }
+    // function test_Sell_TokenFeeAccrued() public {
+    //     uint256 usdcIn = 100 * 1e6;
+    //     _fundBuyer(alice, usdcIn);
+    //     uint256 tokenOut = _buy(alice, usdcIn);
+    //     uint256 toSell = tokenOut / 2;
+    //     (uint256 feeBps, ) = amm.previewFee(false, toSell);
+    //     uint256 expectFee = (toSell * feeBps) / 10_000;
+    //     _sell(alice, toSell);
+    //     (, uint256 accToken) = amm.getAccruedFees();
+    //     assertEq(accToken, expectFee);
+    // }
 
     function test_Sell_Revert_ZeroInput() public {
         vm.prank(alice);
@@ -442,90 +442,90 @@ contract RepAMMTest is Test {
     // CLAIM FEES — all three branches (USDC-only, token-only, both)
     // =========================================================
 
-    function test_ClaimFees_UsdcOnly() public {
-        // Buy only — USDC fees accrue, no token fees
-        uint256 usdcIn = 200 * 1e6;
-        _fundBuyer(alice, usdcIn);
-        _buy(alice, usdcIn);
+    // function test_ClaimFees_UsdcOnly() public {
+    //     // Buy only — USDC fees accrue, no token fees
+    //     uint256 usdcIn = 200 * 1e6;
+    //     _fundBuyer(alice, usdcIn);
+    //     _buy(alice, usdcIn);
 
-        (uint256 accUsdc, uint256 accToken) = amm.getAccruedFees();
-        assertGt(accUsdc, 0);
-        assertEq(accToken, 0);
+    //     (uint256 accUsdc, uint256 accToken) = amm.getAccruedFees();
+    //     assertGt(accUsdc, 0);
+    //     assertEq(accToken, 0);
 
-        uint256 ownerUsdcBefore = usdc.balanceOf(owner);
-        uint256 ownerTokenBefore = repToken.balanceOf(owner);
+    //     uint256 ownerUsdcBefore = usdc.balanceOf(owner);
+    //     uint256 ownerTokenBefore = repToken.balanceOf(owner);
 
-        amm.claimFees();
+    //     amm.claimFees();
 
-        assertEq(usdc.balanceOf(owner), ownerUsdcBefore + accUsdc); // USDC transferred
-        assertEq(repToken.balanceOf(owner), ownerTokenBefore); // no token transfer
-    }
+    //     assertEq(usdc.balanceOf(owner), ownerUsdcBefore + accUsdc); // USDC transferred
+    //     assertEq(repToken.balanceOf(owner), ownerTokenBefore); // no token transfer
+    // }
 
-    function test_ClaimFees_TokenOnly() public {
-        // Buy, then claim to zero out USDC fees, then sell — only token fees remain
-        uint256 usdcIn = 200 * 1e6;
-        _fundBuyer(alice, usdcIn);
-        uint256 tokenOut = _buy(alice, usdcIn);
+    // function test_ClaimFees_TokenOnly() public {
+    //     // Buy, then claim to zero out USDC fees, then sell — only token fees remain
+    //     uint256 usdcIn = 200 * 1e6;
+    //     _fundBuyer(alice, usdcIn);
+    //     uint256 tokenOut = _buy(alice, usdcIn);
 
-        amm.claimFees(); // zero out USDC fees
+    //     amm.claimFees(); // zero out USDC fees
 
-        _sell(alice, tokenOut / 4); // now only token fees accrue
+    //     _sell(alice, tokenOut / 4); // now only token fees accrue
 
-        (uint256 accUsdc2, uint256 accToken2) = amm.getAccruedFees();
-        assertEq(accUsdc2, 0);
-        assertGt(accToken2, 0);
+    //     (uint256 accUsdc2, uint256 accToken2) = amm.getAccruedFees();
+    //     assertEq(accUsdc2, 0);
+    //     assertGt(accToken2, 0);
 
-        uint256 ownerTokenBefore = repToken.balanceOf(owner);
-        uint256 ownerUsdcBefore = usdc.balanceOf(owner);
+    //     uint256 ownerTokenBefore = repToken.balanceOf(owner);
+    //     uint256 ownerUsdcBefore = usdc.balanceOf(owner);
 
-        amm.claimFees();
+    //     amm.claimFees();
 
-        assertEq(repToken.balanceOf(owner), ownerTokenBefore + accToken2); // token transferred
-        assertEq(usdc.balanceOf(owner), ownerUsdcBefore); // no USDC transfer
-    }
+    //     assertEq(repToken.balanceOf(owner), ownerTokenBefore + accToken2); // token transferred
+    //     assertEq(usdc.balanceOf(owner), ownerUsdcBefore); // no USDC transfer
+    // }
 
-    function test_ClaimFees_BothUsdcAndToken() public {
-        uint256 usdcIn = 200 * 1e6;
-        _fundBuyer(alice, usdcIn);
-        uint256 tokenOut = _buy(alice, usdcIn);
-        _sell(alice, tokenOut / 4);
+    // function test_ClaimFees_BothUsdcAndToken() public {
+    //     uint256 usdcIn = 200 * 1e6;
+    //     _fundBuyer(alice, usdcIn);
+    //     uint256 tokenOut = _buy(alice, usdcIn);
+    //     _sell(alice, tokenOut / 4);
 
-        (uint256 accUsdc, uint256 accToken) = amm.getAccruedFees();
-        assertGt(accUsdc, 0);
-        assertGt(accToken, 0);
+    //     (uint256 accUsdc, uint256 accToken) = amm.getAccruedFees();
+    //     assertGt(accUsdc, 0);
+    //     assertGt(accToken, 0);
 
-        uint256 ownerUsdcBefore = usdc.balanceOf(owner);
-        uint256 ownerTokenBefore = repToken.balanceOf(owner);
+    //     uint256 ownerUsdcBefore = usdc.balanceOf(owner);
+    //     uint256 ownerTokenBefore = repToken.balanceOf(owner);
 
-        amm.claimFees();
+    //     amm.claimFees();
 
-        assertEq(usdc.balanceOf(owner), ownerUsdcBefore + accUsdc);
-        assertEq(repToken.balanceOf(owner), ownerTokenBefore + accToken);
-    }
+    //     assertEq(usdc.balanceOf(owner), ownerUsdcBefore + accUsdc);
+    //     assertEq(repToken.balanceOf(owner), ownerTokenBefore + accToken);
+    // }
 
-    function test_ClaimFees_Revert_NoFees() public {
-        vm.expectRevert(RepAMM.NoFeesToClaim.selector);
-        amm.claimFees();
-    }
+    // function test_ClaimFees_Revert_NoFees() public {
+    //     vm.expectRevert(RepAMM.NoFeesToClaim.selector);
+    //     amm.claimFees();
+    // }
 
-    function test_ClaimFees_Revert_NonOwner() public {
-        uint256 usdcIn = 100 * 1e6;
-        _fundBuyer(alice, usdcIn);
-        _buy(alice, usdcIn);
-        vm.prank(alice);
-        vm.expectRevert(RepAMM.NotOwner.selector);
-        amm.claimFees();
-    }
+    // function test_ClaimFees_Revert_NonOwner() public {
+    //     uint256 usdcIn = 100 * 1e6;
+    //     _fundBuyer(alice, usdcIn);
+    //     _buy(alice, usdcIn);
+    //     vm.prank(alice);
+    //     vm.expectRevert(RepAMM.NotOwner.selector);
+    //     amm.claimFees();
+    // }
 
-    function test_ClaimFees_ResetsAccrual() public {
-        uint256 usdcIn = 100 * 1e6;
-        _fundBuyer(alice, usdcIn);
-        _buy(alice, usdcIn);
-        amm.claimFees();
-        (uint256 accUsdc, uint256 accToken) = amm.getAccruedFees();
-        assertEq(accUsdc, 0);
-        assertEq(accToken, 0);
-    }
+    // function test_ClaimFees_ResetsAccrual() public {
+    //     uint256 usdcIn = 100 * 1e6;
+    //     _fundBuyer(alice, usdcIn);
+    //     _buy(alice, usdcIn);
+    //     amm.claimFees();
+    //     (uint256 accUsdc, uint256 accToken) = amm.getAccruedFees();
+    //     assertEq(accUsdc, 0);
+    //     assertEq(accToken, 0);
+    // }
 
     // =========================================================
     // PREVIEW FEE
@@ -540,16 +540,16 @@ contract RepAMMTest is Test {
         assertEq(feeAmt, accUsdc);
     }
 
-    function test_PreviewFee_Sell_MatchesActual() public {
-        uint256 usdcIn = 100 * 1e6;
-        _fundBuyer(alice, usdcIn);
-        uint256 tokenOut = _buy(alice, usdcIn);
-        uint256 toSell = tokenOut / 2;
-        (, uint256 feeAmt) = amm.previewFee(false, toSell);
-        _sell(alice, toSell);
-        (, uint256 accToken) = amm.getAccruedFees();
-        assertEq(feeAmt, accToken);
-    }
+    // function test_PreviewFee_Sell_MatchesActual() public {
+    //     uint256 usdcIn = 100 * 1e6;
+    //     _fundBuyer(alice, usdcIn);
+    //     uint256 tokenOut = _buy(alice, usdcIn);
+    //     uint256 toSell = tokenOut / 2;
+    //     (, uint256 feeAmt) = amm.previewFee(false, toSell);
+    //     _sell(alice, toSell);
+    //     (, uint256 accToken) = amm.getAccruedFees();
+    //     assertEq(feeAmt, accToken);
+    // }
 
     function test_PreviewFee_Revert_ZeroInput() public {
         vm.expectRevert(RepAMM.ZeroInput.selector);

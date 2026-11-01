@@ -328,7 +328,10 @@ contract RepAMM is ReentrancyGuard {
         uint256 usdcNet = usdcIn - feeAmount;
 
         // Fee stays in contract, NOT added to reserves
+        // accruedFeesUsdc += feeAmount;
+
         accruedFeesUsdc += feeAmount;
+        if (feeAmount > 0) usdc.transfer(owner, feeAmount);
 
         // Constant-product swap on net input
         uint256 newUsdc = reserveUsdc + usdcNet;
@@ -374,6 +377,54 @@ contract RepAMM is ReentrancyGuard {
      * @param  tokenIn  Total tokens the user sends (fee included).
      * @return usdcOut  USDC the user receives.
      */
+    // function sell(
+    //     uint256 tokenIn
+    // ) external onlyInitialized nonReentrant returns (uint256 usdcOut) {
+    //     if (tokenIn == 0) revert ZeroInput();
+
+    //     token.transferFrom(msg.sender, address(this), tokenIn);
+    //     uint256 nowPrice = getPrice();
+
+    //     // Dynamic fee on gross input
+    //     uint256 feeBps = getDynamicFeeBps(tokenIn, reserveToken);
+    //     uint256 feeAmount = (tokenIn * feeBps) / BPS_DENOM;
+    //     uint256 tokenNet = tokenIn - feeAmount;
+
+    //     // Fee stays in contract, NOT added to reserves
+    //     accruedFeesToken += feeAmount;
+
+    //     // Constant-product swap on net input
+    //     uint256 newToken = reserveToken + tokenNet;
+    //     uint256 newUsdc = (reserveToken * reserveUsdc) / newToken;
+    //     usdcOut = reserveUsdc - newUsdc;
+
+    //     if (usdcOut == 0) revert InsufficientOutput();
+
+    //     // ── 10% sell cap ──────────────────────────────────────
+    //     // A single sell may not remove more than 10% of reserveUsdc.
+    //     // This is checked AFTER the AMM formula so the cap is exact.
+    //     uint256 maxUsdcOut = (reserveUsdc * MAX_REMOVE_BPS) / BPS_DENOM;
+    //     if (usdcOut > maxUsdcOut) revert SellExceedsCap();
+
+    //     reserveToken = newToken;
+    //     reserveUsdc = newUsdc;
+
+    //     usdc.transfer(msg.sender, usdcOut);
+
+    //     emit Swap(
+    //         msg.sender,
+    //         reserveToken,
+    //         reserveUsdc,
+    //         false,
+    //         tokenIn,
+    //         usdcOut,
+    //         feeAmount,
+    //         feeBps,
+    //         nowPrice,
+    //         tokenType // ✅ from state
+    //     );
+    // }
+
     function sell(
         uint256 tokenIn
     ) external onlyInitialized nonReentrant returns (uint256 usdcOut) {
@@ -382,26 +433,26 @@ contract RepAMM is ReentrancyGuard {
         token.transferFrom(msg.sender, address(this), tokenIn);
         uint256 nowPrice = getPrice();
 
-        // Dynamic fee on gross input
-        uint256 feeBps = getDynamicFeeBps(tokenIn, reserveToken);
-        uint256 feeAmount = (tokenIn * feeBps) / BPS_DENOM;
-        uint256 tokenNet = tokenIn - feeAmount;
-
-        // Fee stays in contract, NOT added to reserves
-        accruedFeesToken += feeAmount;
-
-        // Constant-product swap on net input
-        uint256 newToken = reserveToken + tokenNet;
+        // ── Swap the FULL token amount through the pool first ──
+        uint256 newToken = reserveToken + tokenIn;
         uint256 newUsdc = (reserveToken * reserveUsdc) / newToken;
-        usdcOut = reserveUsdc - newUsdc;
+        uint256 grossUsdcOut = reserveUsdc - newUsdc;
+
+        // ── 10% cap now applies to the gross drain on the pool ──
+        uint256 maxUsdcOut = (reserveUsdc * MAX_REMOVE_BPS) / BPS_DENOM;
+        if (grossUsdcOut > maxUsdcOut) revert SellExceedsCap();
+
+        // ── Fee taken on the USDC OUTPUT, not the token input ──
+        uint256 feeBps = getDynamicFeeBps(tokenIn, reserveToken);
+        uint256 feeAmount = (grossUsdcOut * feeBps) / BPS_DENOM;
+        usdcOut = grossUsdcOut - feeAmount;
 
         if (usdcOut == 0) revert InsufficientOutput();
 
-        // ── 10% sell cap ──────────────────────────────────────
-        // A single sell may not remove more than 10% of reserveUsdc.
-        // This is checked AFTER the AMM formula so the cap is exact.
-        uint256 maxUsdcOut = (reserveUsdc * MAX_REMOVE_BPS) / BPS_DENOM;
-        if (usdcOut > maxUsdcOut) revert SellExceedsCap();
+        accruedFeesUsdc += feeAmount; // fee stays in USDC, not accruedFeesToken
+
+        // accruedFeesUsdc += feeAmount;
+        if (feeAmount > 0) usdc.transfer(owner, feeAmount);
 
         reserveToken = newToken;
         reserveUsdc = newUsdc;
@@ -418,7 +469,7 @@ contract RepAMM is ReentrancyGuard {
             feeAmount,
             feeBps,
             nowPrice,
-            tokenType // ✅ from state
+            tokenType
         );
     }
 
@@ -430,21 +481,21 @@ contract RepAMM is ReentrancyGuard {
      * @notice Sends all accumulated protocol fees to the owner.
      *         USDC fees come from buys; token fees come from sells.
      */
-    function claimFees() external onlyOwner nonReentrant {
-        uint256 usdcFees = accruedFeesUsdc;
-        uint256 tokenFees = accruedFeesToken;
+    // function claimFees() external onlyOwner nonReentrant {
+    //     uint256 usdcFees = accruedFeesUsdc;
+    //     uint256 tokenFees = accruedFeesToken;
 
-        if (usdcFees == 0 && tokenFees == 0) revert NoFeesToClaim();
+    //     if (usdcFees == 0 && tokenFees == 0) revert NoFeesToClaim();
 
-        // Zero out before transferring
-        accruedFeesUsdc = 0;
-        accruedFeesToken = 0;
+    //     // Zero out before transferring
+    //     accruedFeesUsdc = 0;
+    //     accruedFeesToken = 0;
 
-        if (usdcFees > 0) usdc.transfer(msg.sender, usdcFees);
-        if (tokenFees > 0) token.transfer(msg.sender, tokenFees);
+    //     if (usdcFees > 0) usdc.transfer(msg.sender, usdcFees);
+    //     if (tokenFees > 0) token.transfer(msg.sender, tokenFees);
 
-        emit FeesClaimed(usdcFees, tokenFees);
-    }
+    //     emit FeesClaimed(usdcFees, tokenFees);
+    // }
 
     // =========================================================
     // VIEW HELPERS

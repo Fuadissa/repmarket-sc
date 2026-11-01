@@ -312,6 +312,9 @@ contract BondingCurveMarket is ReentrancyGuard, Ownable {
 
         accruedFeesUsdc += feeAmount;
 
+        // accruedFeesUsdc += feeAmount;
+        if (feeAmount > 0) usdc.transfer(owner(), feeAmount);
+
         tokensOut = quoteTokensOut(usdcNet);
 
         // ─────────────────────────────────────────────────────
@@ -388,6 +391,52 @@ contract BondingCurveMarket is ReentrancyGuard, Ownable {
     // SELL
     // =========================================================
 
+    // function sell(
+    //     uint256 tokenIn
+    // ) external nonReentrant returns (uint256 usdcOut) {
+    //     if (!initialized) revert NotInitialized();
+    //     if (graduated) revert MarketGraduated();
+    //     if (tokenIn == 0) revert ZeroInput();
+
+    //     token.transferFrom(msg.sender, address(this), tokenIn);
+    //     uint256 nowPrice = getPrice();
+
+    //     // ── Dynamic fee on gross input ────────────────────────
+    //     // Fee is measured against virtualTokenReserve (the input-side reserve).
+    //     // Deducted before the AMM formula — fee tokens do NOT enter the curve.
+    //     uint256 feeBps = getDynamicFeeBps(tokenIn, virtualTokenReserve);
+    //     uint256 feeAmount = (tokenIn * feeBps) / BPS_DENOM;
+    //     uint256 tokenNet = tokenIn - feeAmount;
+
+    //     accruedFeesToken += feeAmount;
+
+    //     usdcOut = quoteUsdcOut(tokenNet);
+
+    //     if (usdcOut > reserveUsdc) revert InsufficientUsdcLiquidity();
+
+    //     virtualTokenReserve += tokenNet;
+    //     virtualUsdcReserve -= usdcOut;
+
+    //     reserveToken += tokenNet;
+    //     reserveUsdc -= usdcOut;
+    //     tokensSold -= tokenNet;
+
+    //     usdc.transfer(msg.sender, usdcOut);
+
+    //     emit Sell(
+    //         msg.sender,
+    //         virtualTokenReserve,
+    //         virtualUsdcReserve,
+    //         tokenIn,
+    //         usdcOut,
+    //         feeAmount,
+    //         feeBps,
+    //         nowPrice,
+    //         address(token),
+    //         tokenType
+    //     );
+    // }
+
     function sell(
         uint256 tokenIn
     ) external nonReentrant returns (uint256 usdcOut) {
@@ -398,25 +447,26 @@ contract BondingCurveMarket is ReentrancyGuard, Ownable {
         token.transferFrom(msg.sender, address(this), tokenIn);
         uint256 nowPrice = getPrice();
 
-        // ── Dynamic fee on gross input ────────────────────────
-        // Fee is measured against virtualTokenReserve (the input-side reserve).
-        // Deducted before the AMM formula — fee tokens do NOT enter the curve.
+        // ── Swap the FULL token amount through the curve first ──
+        uint256 grossUsdcOut = quoteUsdcOut(tokenIn);
+
+        if (grossUsdcOut > reserveUsdc) revert InsufficientUsdcLiquidity();
+
+        // ── Fee is now taken on the USDC OUTPUT, not the token input ──
         uint256 feeBps = getDynamicFeeBps(tokenIn, virtualTokenReserve);
-        uint256 feeAmount = (tokenIn * feeBps) / BPS_DENOM;
-        uint256 tokenNet = tokenIn - feeAmount;
+        uint256 feeAmount = (grossUsdcOut * feeBps) / BPS_DENOM;
+        usdcOut = grossUsdcOut - feeAmount;
 
-        accruedFeesToken += feeAmount;
+        accruedFeesUsdc += feeAmount; // fee stays in USDC, not accruedFeesToken
+        // accruedFeesUsdc += feeAmount;
+        if (feeAmount > 0) usdc.transfer(owner(), feeAmount);
 
-        usdcOut = quoteUsdcOut(tokenNet);
+        virtualTokenReserve += tokenIn;
+        virtualUsdcReserve -= grossUsdcOut;
 
-        if (usdcOut > reserveUsdc) revert InsufficientUsdcLiquidity();
-
-        virtualTokenReserve += tokenNet;
-        virtualUsdcReserve -= usdcOut;
-
-        reserveToken += tokenNet;
-        reserveUsdc -= usdcOut;
-        tokensSold -= tokenNet;
+        reserveToken += tokenIn;
+        reserveUsdc -= grossUsdcOut;
+        tokensSold -= tokenIn;
 
         usdc.transfer(msg.sender, usdcOut);
 
@@ -512,20 +562,20 @@ contract BondingCurveMarket is ReentrancyGuard, Ownable {
      * @notice Withdraws all accumulated protocol fees to the owner.
      *         USDC fees come from buys; token fees come from sells.
      */
-    function claimFees() external onlyOwner nonReentrant {
-        uint256 usdcFees = accruedFeesUsdc;
-        uint256 tokenFees = accruedFeesToken;
+    // function claimFees() external onlyOwner nonReentrant {
+    //     uint256 usdcFees = accruedFeesUsdc;
+    //     uint256 tokenFees = accruedFeesToken;
 
-        if (usdcFees == 0 && tokenFees == 0) revert NoFeesToClaim();
+    //     if (usdcFees == 0 && tokenFees == 0) revert NoFeesToClaim();
 
-        accruedFeesUsdc = 0;
-        accruedFeesToken = 0;
+    //     accruedFeesUsdc = 0;
+    //     accruedFeesToken = 0;
 
-        if (usdcFees > 0) usdc.transfer(msg.sender, usdcFees);
-        if (tokenFees > 0) token.transfer(msg.sender, tokenFees);
+    //     if (usdcFees > 0) usdc.transfer(msg.sender, usdcFees);
+    //     if (tokenFees > 0) token.transfer(msg.sender, tokenFees);
 
-        emit FeesClaimed(usdcFees, tokenFees);
-    }
+    //     emit FeesClaimed(usdcFees, tokenFees);
+    // }
 
     // =========================================================
     // VIEW HELPERS

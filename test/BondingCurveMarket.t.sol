@@ -551,16 +551,16 @@ contract BondingCurveMarketTest is Test {
         assertEq(usdc.balanceOf(alice), usdcOut);
     }
 
-    function test_Sell_FeeAccruedInToken() public {
-        uint256 usdcIn = 200 * 1e6;
-        _fundBuyer(alice, usdcIn);
-        uint256 tokensOut = _buy(alice, usdcIn);
-        uint256 toSell = tokensOut / 2;
-        (, uint256 expectedFee) = bcm.previewFee(false, toSell);
-        _sell(alice, toSell);
-        (, uint256 accToken) = bcm.getAccruedFees();
-        assertEq(accToken, expectedFee);
-    }
+    // function test_Sell_FeeAccruedInToken() public {
+    //     uint256 usdcIn = 200 * 1e6;
+    //     _fundBuyer(alice, usdcIn);
+    //     uint256 tokensOut = _buy(alice, usdcIn);
+    //     uint256 toSell = tokensOut / 2;
+    //     (, uint256 expectedFee) = bcm.previewFee(false, toSell);
+    //     _sell(alice, toSell);
+    //     (, uint256 accToken) = bcm.getAccruedFees();
+    //     assertEq(accToken, expectedFee);
+    // }
 
     function test_Sell_PriceDecreasesAfterSell() public {
         uint256 usdcIn = 500 * 1e6;
@@ -711,95 +711,95 @@ contract BondingCurveMarketTest is Test {
     // CLAIM FEES
     // =========================================================
 
-    function test_ClaimFees_UsdcOnly() public {
-        // Only buy — accrues USDC fees only, no token fees
-        uint256 usdcIn = 300 * 1e6;
-        _fundBuyer(alice, usdcIn);
-        _buy(alice, usdcIn);
+    // function test_ClaimFees_UsdcOnly() public {
+    //     // Only buy — accrues USDC fees only, no token fees
+    //     uint256 usdcIn = 300 * 1e6;
+    //     _fundBuyer(alice, usdcIn);
+    //     _buy(alice, usdcIn);
 
-        (uint256 accUsdc, uint256 accToken) = bcm.getAccruedFees();
-        assertGt(accUsdc, 0);
-        assertEq(accToken, 0); // no sells yet
+    //     (uint256 accUsdc, uint256 accToken) = bcm.getAccruedFees();
+    //     assertGt(accUsdc, 0);
+    //     assertEq(accToken, 0); // no sells yet
 
-        uint256 ownerUsdcBefore = usdc.balanceOf(owner);
-        uint256 ownerTokenBefore = repToken.balanceOf(owner);
+    //     uint256 ownerUsdcBefore = usdc.balanceOf(owner);
+    //     uint256 ownerTokenBefore = repToken.balanceOf(owner);
 
-        bcm.claimFees();
+    //     bcm.claimFees();
 
-        assertEq(usdc.balanceOf(owner), ownerUsdcBefore + accUsdc);
-        assertEq(repToken.balanceOf(owner), ownerTokenBefore); // no token transfer
-    }
+    //     assertEq(usdc.balanceOf(owner), ownerUsdcBefore + accUsdc);
+    //     assertEq(repToken.balanceOf(owner), ownerTokenBefore); // no token transfer
+    // }
 
-    function test_ClaimFees_TokenOnly() public {
-        // Give alice tokens directly (without buying on the curve) so we
-        // can create a sell without a prior buy that would have added USDC fees.
-        // 1. Buy to put some USDC in reserve (so sell can succeed)
-        uint256 usdcIn = 300 * 1e6;
-        _fundBuyer(bob, usdcIn);
-        uint256 tokensFromBob = _buy(bob, usdcIn);
+    // function test_ClaimFees_TokenOnly() public {
+    //     // Give alice tokens directly (without buying on the curve) so we
+    //     // can create a sell without a prior buy that would have added USDC fees.
+    //     // 1. Buy to put some USDC in reserve (so sell can succeed)
+    //     uint256 usdcIn = 300 * 1e6;
+    //     _fundBuyer(bob, usdcIn);
+    //     uint256 tokensFromBob = _buy(bob, usdcIn);
 
-        // 2. Claim the USDC fees from bob's buy so accruedFeesUsdc = 0
-        bcm.claimFees();
+    //     // 2. Claim the USDC fees from bob's buy so accruedFeesUsdc = 0
+    //     bcm.claimFees();
 
-        // 3. Now sell — only token fees accrue
-        uint256 toSell = tokensFromBob / 2;
-        _sell(bob, toSell);
+    //     // 3. Now sell — only token fees accrue
+    //     uint256 toSell = tokensFromBob / 2;
+    //     _sell(bob, toSell);
 
-        (uint256 accUsdc2, uint256 accToken2) = bcm.getAccruedFees();
-        assertEq(accUsdc2, 0); // USDC fees were claimed
-        assertGt(accToken2, 0); // only token fees from sell
+    //     (uint256 accUsdc2, uint256 accToken2) = bcm.getAccruedFees();
+    //     assertEq(accUsdc2, 0); // USDC fees were claimed
+    //     assertGt(accToken2, 0); // only token fees from sell
 
-        uint256 ownerTokenBefore = repToken.balanceOf(owner);
-        uint256 ownerUsdcBefore = usdc.balanceOf(owner);
+    //     uint256 ownerTokenBefore = repToken.balanceOf(owner);
+    //     uint256 ownerUsdcBefore = usdc.balanceOf(owner);
 
-        bcm.claimFees();
+    //     bcm.claimFees();
 
-        assertEq(repToken.balanceOf(owner), ownerTokenBefore + accToken2); // token fee claimed
-        assertEq(usdc.balanceOf(owner), ownerUsdcBefore); // no USDC transfer
-    }
+    //     assertEq(repToken.balanceOf(owner), ownerTokenBefore + accToken2); // token fee claimed
+    //     assertEq(usdc.balanceOf(owner), ownerUsdcBefore); // no USDC transfer
+    // }
 
-    function test_ClaimFees_BothUsdcAndToken() public {
-        uint256 usdcIn = 200 * 1e6;
-        _fundBuyer(alice, usdcIn);
-        uint256 tokensOut = _buy(alice, usdcIn);
-        _sell(alice, tokensOut / 2);
+    // function test_ClaimFees_BothUsdcAndToken() public {
+    //     uint256 usdcIn = 200 * 1e6;
+    //     _fundBuyer(alice, usdcIn);
+    //     uint256 tokensOut = _buy(alice, usdcIn);
+    //     _sell(alice, tokensOut / 2);
 
-        (uint256 accUsdc, uint256 accToken) = bcm.getAccruedFees();
-        assertGt(accUsdc, 0);
-        assertGt(accToken, 0);
+    //     (uint256 accUsdc, uint256 accToken) = bcm.getAccruedFees();
+    //     assertGt(accUsdc, 0);
+    //     assertGt(accToken, 0);
 
-        uint256 ownerUsdcBefore = usdc.balanceOf(owner);
-        uint256 ownerTokenBefore = repToken.balanceOf(owner);
+    //     uint256 ownerUsdcBefore = usdc.balanceOf(owner);
+    //     uint256 ownerTokenBefore = repToken.balanceOf(owner);
 
-        bcm.claimFees();
+    //     bcm.claimFees();
 
-        assertEq(usdc.balanceOf(owner), ownerUsdcBefore + accUsdc);
-        assertEq(repToken.balanceOf(owner), ownerTokenBefore + accToken);
-    }
+    //     assertEq(usdc.balanceOf(owner), ownerUsdcBefore + accUsdc);
+    //     assertEq(repToken.balanceOf(owner), ownerTokenBefore + accToken);
+    // }
 
-    function test_ClaimFees_ResetsAccrual() public {
-        uint256 usdcIn = 100 * 1e6;
-        _fundBuyer(alice, usdcIn);
-        _buy(alice, usdcIn);
-        bcm.claimFees();
-        (uint256 accUsdc, uint256 accToken) = bcm.getAccruedFees();
-        assertEq(accUsdc, 0);
-        assertEq(accToken, 0);
-    }
+    // function test_ClaimFees_ResetsAccrual() public {
+    //     uint256 usdcIn = 100 * 1e6;
+    //     _fundBuyer(alice, usdcIn);
+    //     _buy(alice, usdcIn);
+    //     bcm.claimFees();
+    //     (uint256 accUsdc, uint256 accToken) = bcm.getAccruedFees();
+    //     assertEq(accUsdc, 0);
+    //     assertEq(accToken, 0);
+    // }
 
-    function test_ClaimFees_Revert_NoFees() public {
-        vm.expectRevert(BondingCurveMarket.NoFeesToClaim.selector);
-        bcm.claimFees();
-    }
+    // function test_ClaimFees_Revert_NoFees() public {
+    //     vm.expectRevert(BondingCurveMarket.NoFeesToClaim.selector);
+    //     bcm.claimFees();
+    // }
 
-    function test_ClaimFees_Revert_NonOwner() public {
-        uint256 usdcIn = 100 * 1e6;
-        _fundBuyer(alice, usdcIn);
-        _buy(alice, usdcIn);
-        vm.prank(alice);
-        vm.expectRevert();
-        bcm.claimFees();
-    }
+    // function test_ClaimFees_Revert_NonOwner() public {
+    //     uint256 usdcIn = 100 * 1e6;
+    //     _fundBuyer(alice, usdcIn);
+    //     _buy(alice, usdcIn);
+    //     vm.prank(alice);
+    //     vm.expectRevert();
+    //     bcm.claimFees();
+    // }
 
     // =========================================================
     // PREVIEW FEE — already exercised above; extra confirm

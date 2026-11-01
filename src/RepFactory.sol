@@ -8,6 +8,7 @@ pragma solidity ^0.8.20;
 import {REPToken} from "./REPToken.sol";
 import {RepAMM} from "./RepAMM.sol";
 import {BondingCurveMarket} from "./BondingCurveMarket.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title  RepFactory
@@ -29,6 +30,8 @@ contract RepFactory {
     // ERROR
     // =========================================================
     error NotOwner();
+    error NoFeesToClaim();
+    error ZeroTokenAddress();
 
     // =========================================================
     // STATE
@@ -55,10 +58,10 @@ contract RepFactory {
 
     mapping(address => MarketInfo) public marketByToken;
 
-    address[] public repTokens;
-    address[] public credTokens;
-    address[] public repMarkets;
-    address[] public credMarkets;
+    // address[] public repTokens;
+    // address[] public credTokens;
+    // address[] public repMarkets;
+    // address[] public credMarkets;
 
     // =========================================================
     // EVENTS
@@ -71,6 +74,12 @@ contract RepFactory {
         string marketType,
         string name,
         string symbol
+    );
+
+    event FeesClaimed(
+        address indexed token,
+        address indexed to,
+        uint256 amount
     );
 
     // =========================================================
@@ -151,8 +160,8 @@ contract RepFactory {
 
         marketByToken[address(rep)] = info;
 
-        repTokens.push(address(rep));
-        repMarkets.push(address(bcm));
+        // repTokens.push(address(rep));
+        // repMarkets.push(address(bcm));
 
         emit MarketCreated(
             address(rep),
@@ -197,7 +206,7 @@ contract RepFactory {
             1_073_000_000 ether, // virtualTokenReserve (Your current virtualToken)
             4_500 * 1e6, // virtualUsdcReserve (Your current virtualUsdc)
             793_086_957 ether, // graduationThreshold
-            12_750 * 1e6, // graduationUsdTarget ($250,000 USDC)
+            12_750 * 1e6, // graduationUsdTarget ($12,750 USDC)
             address(amm),
             206_913_043 ether, // ammReserveTokens
             "CRED"
@@ -226,8 +235,8 @@ contract RepFactory {
         allMarkets.push(info);
 
         marketByToken[address(cred)] = info;
-        credTokens.push(address(cred));
-        credMarkets.push(address(bcm));
+        // credTokens.push(address(cred));
+        // credMarkets.push(address(bcm));
 
         emit MarketCreated(
             address(cred),
@@ -242,27 +251,56 @@ contract RepFactory {
     }
 
     // =========================================================
+    // CLAIM FEES  (owner only)
+    // =========================================================
+
+    /**
+     * @notice Withdraws the factory's entire balance of a given fee token
+     *         (e.g. USDC) to the owner. Since every BondingCurveMarket and
+     *         RepAMM is deployed BY this factory, `owner()` on each of those
+     *         contracts resolves to this factory's address — meaning every
+     *         market's fees accumulate here, in one place, regardless of
+     *         how many markets exist.
+     *
+     * @param  tokenAddr  The fee token to claim (e.g. USDC address).
+     * @return amount     The amount transferred to the owner.
+     */
+    function claimFees(
+        address tokenAddr
+    ) external onlyOwner returns (uint256 amount) {
+        if (tokenAddr == address(0)) revert ZeroTokenAddress();
+
+        IERC20 feeToken = IERC20(tokenAddr);
+        amount = feeToken.balanceOf(address(this));
+
+        if (amount == 0) revert NoFeesToClaim();
+
+        feeToken.transfer(owner, amount);
+
+        emit FeesClaimed(tokenAddr, owner, amount);
+    }
+
+    /**
+     * @notice View helper — check claimable balance for a token without
+     *         claiming it. Useful for a dashboard/UI.
+     */
+    function pendingFees(address tokenAddr) external view returns (uint256) {
+        return IERC20(tokenAddr).balanceOf(address(this));
+    }
+
+    // =========================================================
     // VIEWS
     // =========================================================
 
     function getAllMarkets() external view returns (MarketInfo[] memory) {
         return allMarkets;
     }
-    function getRepMarkets() external view returns (address[] memory) {
-        return repMarkets;
-    }
-    function getCredMarkets() external view returns (address[] memory) {
-        return credMarkets;
-    }
-    function totalMarkets() external view returns (uint256) {
-        return allMarkets.length;
-    }
-    function totalRepMarkets() external view returns (uint256) {
-        return repMarkets.length;
-    }
-    function totalCredMarkets() external view returns (uint256) {
-        return credMarkets.length;
-    }
+    // function getRepMarkets() external view returns (address[] memory) {
+    //     return repMarkets;
+    // }
+    // function getCredMarkets() external view returns (address[] memory) {
+    //     return credMarkets;
+    // }
 
     // =========================================================
     // MANUAL GETTERS
